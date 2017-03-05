@@ -520,8 +520,7 @@ class ReadsSpec extends org.specs2.mutable.Specification {
 
     Fragment.foreach(validTimeZones)(tz =>
       s"be successfully read from $tz" in {
-        reads(JsString(tz)).
-          aka("read ZoneId") must_== JsSuccess(ZoneId.of(tz))
+        reads(JsString(tz)) must_== JsSuccess(ZoneId.of(tz))
       })
 
     "not be read from number" in {

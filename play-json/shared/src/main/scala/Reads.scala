@@ -3,6 +3,8 @@
  */
 package play.api.libs.json
 
+import java.math.{ BigDecimal => JBigDec }
+
 import scala.annotation.implicitNotFound
 
 import scala.collection._
@@ -164,7 +166,9 @@ trait LowPriorityDefaultReads extends EnvReads {
           builder ++= res
           JsSuccess(builder.result())
         })
-      case _ => JsError(Seq(JsPath -> Seq(JsonValidationError("error.expected.jsarray"))))
+
+      case _ => JsError(Seq(
+        JsPath -> Seq(JsonValidationError("error.expected.jsarray"))))
     }
   }
 }
@@ -256,13 +260,12 @@ trait DefaultReads extends LowPriorityDefaultReads {
   }
 
   /**
-   * Deserializer for BigDecimal
+   * Deserializer for Java BigDecimal
    */
-  implicit val bigDecReads = Reads[BigDecimal](js => js match {
-    case JsString(s) =>
-      scala.util.control.Exception.catching(classOf[NumberFormatException])
-        .opt(JsSuccess(BigDecimal(new java.math.BigDecimal(s))))
-        .getOrElse(JsError(JsonValidationError("error.expected.numberformatexception")))
+  implicit val javaBigDecReads = Reads[JBigDec](js => js match {
+    case JsString(s) => JsResult(new JBigDec(s)).orElse(
+      JsError(JsonValidationError("error.expected.numberformatexception")))
+
     case JsNumber(d) => JsSuccess(d.underlying)
     case _ => JsError(JsonValidationError("error.expected.jsnumberorjsstring"))
   })
@@ -270,30 +273,25 @@ trait DefaultReads extends LowPriorityDefaultReads {
   /**
    * Deserializer for BigDecimal
    */
-  implicit val javaBigDecReads = Reads[java.math.BigDecimal](js => js match {
-    case JsString(s) =>
-      scala.util.control.Exception.catching(classOf[NumberFormatException])
-        .opt(JsSuccess(new java.math.BigDecimal(s)))
-        .getOrElse(JsError(JsonValidationError("error.expected.numberformatexception")))
-    case JsNumber(d) => JsSuccess(d.underlying)
-    case _ => JsError(JsonValidationError("error.expected.jsnumberorjsstring"))
-  })
+  implicit val bigDecReads: Reads[BigDecimal] =
+    javaBigDecReads.map(BigDecimal(_))
 
   /**
    * Reads for `scala.Enumeration` types using the name.
    *
    * @param enum a `scala.Enumeration`.
    */
-  def enumNameReads[E <: Enumeration](enum: E): Reads[E#Value] = new Reads[E#Value] {
-    def reads(json: JsValue) = json match {
-      case JsString(str) =>
-        enum.values
-          .find(_.toString == str)
-          .map(JsSuccess(_))
-          .getOrElse(JsError(Seq(JsPath -> Seq(JsonValidationError("error.expected.validenumvalue")))))
-      case _ => JsError(Seq(JsPath -> Seq(JsonValidationError("error.expected.enumstring"))))
+  def enumNameReads[E <: Enumeration](enum: E): Reads[E#Value] =
+    Reads[E#Value] {
+      case JsString(str) => enum.values.find(_.toString == str) match {
+        case Some(v) => JsSuccess(v)
+        case _ => JsError(Seq(JsPath -> Seq(
+          JsonValidationError("error.expected.validenumvalue"))))
+      }
+
+      case _ => JsError(Seq(JsPath -> Seq(
+        JsonValidationError("error.expected.enumstring"))))
     }
-  }
 
   /**
    * Deserializer for Boolean types.
@@ -460,9 +458,17 @@ trait DefaultReads extends LowPriorityDefaultReads {
 
     def reads(json: JsValue) = json match {
       case JsString(s) => {
-        parseUuid(s).map(JsSuccess(_)).getOrElse(JsError(Seq(JsPath -> Seq(JsonValidationError("error.expected.uuid")))))
+        val res = JsResult(UUID fromString s)
+        val checked = if (!checkValidity) res else {
+          res.filter(_.toString == s)
+        }
+
+        checked.orElse(JsError(Seq(JsPath -> Seq(
+          JsonValidationError("error.expected.uuid")))))
       }
-      case _ => JsError(Seq(JsPath -> Seq(JsonValidationError("error.expected.uuid"))))
+
+      case _ => JsError(Seq(JsPath -> Seq(
+        JsonValidationError("error.expected.uuid"))))
     }
   }
 

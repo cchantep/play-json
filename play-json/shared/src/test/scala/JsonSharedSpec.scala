@@ -149,6 +149,25 @@ class JsonSharedSpec extends WordSpec
 
       parsedJson \ "symbol" mustEqual JsDefined(JsString("☕"))
       parsedJson \ "price" mustEqual JsDefined(JsString("2.5 €"))
+
+      val validated = js.validate(string)
+
+      validated.map(_ \ "symbol") mustEqual JsSuccess(JsDefined(JsString("☕")))
+
+      validated.map(_ \ "price") mustEqual JsSuccess(
+        JsDefined(JsString("2.5 €")))
+    }
+
+    "fails with empty bytes array" in json { js =>
+      js.validate(Array.empty[Byte]) match {
+        case JsError((JsPath, JsonValidationError(
+          ::(err, _), _) :: Nil) :: Nil) => {
+          val index = err.indexOf("end-of-input") + err.indexOf("end of input")
+          (index > 0) mustEqual true
+        }
+
+        case _ =>
+      }
     }
   }
 
@@ -248,18 +267,32 @@ class JsonSharedSpec extends WordSpec
       ))
 
       js.parse(recursiveJson) mustEqual expectedJson
+      js.validate(recursiveJson) mustEqual JsSuccess(expectedJson)
     }
 
     "can parse null values in Object" in json { js =>
       js.parse("""{"foo": null}""") mustEqual JsObject(List("foo" -> JsNull))
+
+      js.validate("""{"foo": null}""") mustEqual JsSuccess(
+        JsObject(List("foo" -> JsNull)))
     }
 
     "can parse null values in Array" in json { js =>
       js.parse("[null]") mustEqual JsArray(List(JsNull))
+      js.validate("[null]") mustEqual JsSuccess(JsArray(List(JsNull)))
+
     }
 
     "null root object should be parsed as JsNull" in json { js =>
       js.parse("null") mustEqual JsNull
+      js.validate("null") mustEqual JsSuccess(JsNull)
+    }
+
+    "fail to parse null string" in json {
+      _.validate(null.asInstanceOf[String]) match {
+        case JsError(_) => ()
+        case _ => fail("Should not succeed")
+      }
     }
 
     "JSON pretty print" in json { js =>
@@ -367,7 +400,7 @@ class JsonSharedSpec extends WordSpec
       val req = """{"name":"foo", "zip":"foo", "city":"foo"}"""
 
       test.toString mustEqual js.parse(req).toString
-      //must be(equalIgnoringSpace(Json.parse(req).toString))
+      js.validate(req).map(_.toString) mustEqual JsSuccess(test.toString)
     }
 
     "keep insertion order on large ListMap" in json { js =>
@@ -390,7 +423,8 @@ class JsonSharedSpec extends WordSpec
 
       def req = """{"name": "a", "zip": "foo", "city": "foo", "address": "foo", "phone": "foo", "latitude": "foo", "longitude": "foo", "hny": "foo", "hz": "foo", "hek": "foo", "hev": "foo", "kny": "foo", "kz": "foo", "kek": "foo", "kev": "foo", "szeny": "foo", "szez": "foo", "szeek": "foo", "szeev": "foo", "csny": "foo", "csz": "foo", "csek": "foo", "csev": "foo", "pny": "foo", "pz": "foo", "pek": "foo", "pev": "foo", "szony": "foo", "szoz": "foo", "szoek": "foo", "szoev": "foo", "vny": "foo", "vz": "foo", "vek": "foo", "vev": "foo"}"""
 
-      test.toString mustEqual js.parse(req).toString //).ignoreSpace
+      test.toString mustEqual js.parse(req).toString
+      js.validate(req).map(_.toString) mustEqual JsSuccess(test.toString)
     }
   }
 

@@ -5,8 +5,10 @@ package play.api.libs.json
 
 /**
  * The result for a successful parsing.
+ *
+ * @param value the result value (must be a literal)
  */
-case class JsSuccess[T](value: T, path: JsPath = JsPath()) extends JsResult[T] {
+case class JsSuccess[T](value: T, path: JsPath = JsPath) extends JsResult[T] {
   def get: T = value
 
   val isSuccess = true
@@ -14,7 +16,7 @@ case class JsSuccess[T](value: T, path: JsPath = JsPath()) extends JsResult[T] {
 
   def fold[U](invalid: Seq[(JsPath, Seq[JsonValidationError])] => U, valid: T => U): U = valid(value)
 
-  def map[U](f: T => U): JsResult[U] = copy(value = f(value))
+  def map[U](f: T => U): JsResult[U] = JsResult(f(value), path)
 
   def flatMap[U](f: T => JsResult[U]): JsResult[U] = f(value).repath(path)
 
@@ -268,6 +270,17 @@ object JsResult {
     case e @ JsError(_) => Failure(err(e))
     case s @ JsSuccess(v, _) => Success(v)
   }
+
+  def fromTry[T](provider: Try[T], path: JsPath = JsPath): JsResult[T] =
+    provider match {
+      case Failure(cause) => JsError(
+        path -> JsonValidationError(cause.getMessage, cause))
+
+      case Success(v) => JsSuccess(v, path)
+    }
+
+  @inline def apply[T](unsafe: => T, path: JsPath = JsPath): JsResult[T] =
+    fromTry(Try[T](unsafe), path)
 
   implicit def alternativeJsResult(implicit a: Applicative[JsResult]): Alternative[JsResult] = new Alternative[JsResult] {
     val app = a

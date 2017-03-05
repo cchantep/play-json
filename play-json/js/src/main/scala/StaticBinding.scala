@@ -9,11 +9,11 @@ import scalajs.js, js.JSON
 
 object StaticBinding {
   /** Parses a [[JsValue]] from raw data (assuming UTF-8). */
-  def parseJsValue(data: Array[Byte]): JsValue =
+  def parseJsValue(data: Array[Byte]): JsResult[JsValue] =
     parseJsValue(new String(data, "UTF-8"))
 
   /** Parses a [[JsValue]] from a stream (assuming UTF-8). */
-  def parseJsValue(stream: java.io.InputStream): JsValue = {
+  def parseJsValue(stream: java.io.InputStream): JsResult[JsValue] = JsResult {
     var in: InputStreamReader = null
 
     try {
@@ -34,17 +34,19 @@ object StaticBinding {
         } else acc.result()
       }
 
-      parseJsValue(read())
+      read()
     } catch {
       case err: Throwable => throw err
     } finally {
       if (in != null) in.close()
     }
-  }
+  }.flatMap(parseJsValue(_))
 
   /** Parses a [[JsValue]] from a string content. */
-  def parseJsValue(input: String): JsValue =
-    anyToJsValue(JSON parse input)
+  def parseJsValue(input: String): JsResult[JsValue] = input match {
+    case null => JsError("Unexpected null input")
+    case _ => JsResult(anyToJsValue(JSON parse input))
+  }
 
   def generateFromJsValue(jsValue: JsValue, escapeNonASCII: Boolean): String =
     fromJs(jsValue, escapeNonASCII, 0, _ => "")

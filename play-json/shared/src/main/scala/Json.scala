@@ -10,6 +10,8 @@ import java.io.InputStream
  * @define returnStringRepr A String with the json representation
  */
 sealed trait JsonFacade {
+  def validate(input: String): JsResult[JsValue]
+
   /**
    * Parses a String representing a JSON input, and returns it as a [[JsValue]].
    *
@@ -17,12 +19,16 @@ sealed trait JsonFacade {
    */
   def parse(input: String): JsValue
 
+  def validate(input: InputStream): JsResult[JsValue]
+
   /**
    * Parses a stream representing a JSON input, and returns it as a [[JsValue]].
    *
    * @param input the InputStream to parse
    */
   def parse(input: InputStream): JsValue
+
+  def validate(input: Array[Byte]): JsResult[JsValue]
 
   /**
    * Parses some bytes representing a JSON input,
@@ -164,12 +170,20 @@ sealed trait JsonFacade {
  * @define macroWarning If any missing implicit is discovered, compiler will break with corresponding error.
  */
 object Json extends JsonFacade {
+  def validate(input: String): JsResult[JsValue] =
+    StaticBinding.parseJsValue(input)
 
-  def parse(input: String): JsValue = StaticBinding.parseJsValue(input)
+  def parse(input: String): JsValue = validate(input).get
 
-  def parse(input: InputStream): JsValue = StaticBinding.parseJsValue(input)
+  def validate(input: InputStream): JsResult[JsValue] =
+    StaticBinding.parseJsValue(input)
 
-  def parse(input: Array[Byte]): JsValue = StaticBinding.parseJsValue(input)
+  def parse(input: InputStream): JsValue = validate(input).get
+
+  def validate(input: Array[Byte]): JsResult[JsValue] =
+    StaticBinding.parseJsValue(input)
+
+  def parse(input: Array[Byte]): JsValue = validate(input).get
 
   def stringify(json: JsValue): String =
     StaticBinding.generateFromJsValue(json, false)
@@ -302,9 +316,14 @@ object Json extends JsonFacade {
    * @define macroTypeParam @tparam A the type for which the handler must be materialized
    */
   final class WithOptions[Opts <: MacroOptions]() extends JsonFacade {
+    @inline def validate(input: String) = Json.validate(input)
+    @inline def validate(input: InputStream) = Json.validate(input)
+    @inline def validate(input: Array[Byte]) = Json.validate(input)
+
     @inline def parse(input: String): JsValue = Json.parse(input)
     @inline def parse(input: InputStream): JsValue = Json.parse(input)
     @inline def parse(input: Array[Byte]): JsValue = Json.parse(input)
+
     @inline def stringify(json: JsValue): String = Json.stringify(json)
     @inline def toBytes(json: JsValue): Array[Byte] = Json.toBytes(json)
 
