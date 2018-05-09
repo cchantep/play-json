@@ -281,9 +281,8 @@ case class JsPath(path: List[PathNode] = List()) {
   def read[T](implicit r: Reads[T]): Reads[T] = Reads.at[T](this)(r)
 
   /** Reads a T at JsPath */
-  def readWithDefault[T](defaultValue: => T)(implicit r: Reads[T]): Reads[T] = {
+  def readWithDefault[T](defaultValue: => T)(implicit r: Reads[T]): Reads[T] =
     read[T] orElse Reads.pure(defaultValue)
-  }
 
   /**
    * Reads a Option[T] search optional or nullable field at JsPath (field not found or null is None
@@ -403,6 +402,7 @@ case class JsPath(path: List[PathNode] = List()) {
 
   /** Reads/Writes a T at JsPath using provided explicit Reads[T] and implicit Writes[T]*/
   def format[T](r: Reads[T])(implicit w: Writes[T]): OFormat[T] = Format.at[T](this)(Format(r, w))
+
   /** Reads/Writes a T at JsPath using provided explicit Writes[T] and implicit Reads[T]*/
   def format[T](w: Writes[T])(implicit r: Reads[T]): OFormat[T] = Format.at[T](this)(Format(r, w))
 
