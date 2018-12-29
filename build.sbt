@@ -148,6 +148,18 @@ lazy val `play-json` = crossProject(JVMPlatform, JSPlatform).crossType(CrossType
       ProblemFilters.exclude[ReversedMissingMethodProblem]("play.api.libs.json.JsResult.exists"),
       ProblemFilters.exclude[ReversedMissingMethodProblem]("play.api.libs.json.JsResult.forall"),
 
+      // New when Writes changed as invariant
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("play.api.libs.json.DefaultWrites.someWrites"),
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("play.api.libs.json.DefaultWrites.rangeWrites"),
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("play.api.libs.json.DefaultWrites.genericMapWrites"),
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("play.api.libs.json.DefaultWrites.jsValueWrites"),
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("play.api.libs.json.DefaultWrites.defaultDateWrites"),
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("play.api.libs.json.DefaultWrites.play$api$libs$json$DefaultWrites$_setter_$NoneWrites_="),
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("play.api.libs.json.DefaultWrites.NoneWrites"),
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("play.api.libs.json.LowPriorityWrites.iterableWrites"),
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("play.api.libs.json.LowPriorityWrites.stringableWrites"),
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("play.api.libs.json.EnvWrites.jsonNodeWrites"),
+
       // Scala 2.13.0-M5
       ProblemFilters.exclude[IncompatibleMethTypeProblem]("play.api.libs.json.LowPriorityDefaultReads.traversableReads"),
       ProblemFilters.exclude[IncompatibleMethTypeProblem]("play.api.libs.json.Reads.traversableReads"),
