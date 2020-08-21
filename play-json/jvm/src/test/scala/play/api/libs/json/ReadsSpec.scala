@@ -761,7 +761,7 @@ class ReadsSpec extends org.specs2.mutable.Specification {
     }
 
     "not parse string exceeding length limit" in {
-      reads(JsString(longNumberString + "1")) must_=== JsError(JsonValidationError("error.expected.numberdigitlimit"))
+      reads(JsString(longNumberString + "1")) must_=== JsError("error.expected.numberdigitlimit")
     }
 
     "parse string with acceptable scale" in {
@@ -771,7 +771,30 @@ class ReadsSpec extends org.specs2.mutable.Specification {
 
     "not parse string exceeding scale limit" in {
       val numberString = s"1E+${settings.scaleLimit + 1}"
-      reads(JsString(numberString)) must_=== JsError(JsonValidationError("error.expected.numberscalelimit"))
+      reads(JsString(numberString)) must_=== JsError(JsonValidationError("error.expected.numberscalelimit", -6179))
+    }
+
+    Fragment.foreach(Seq("1.0", "A")) { repr =>
+      s"fails with NumberFormatException for '$repr'" in {
+        JsString(repr).validate[java.math.BigInteger] must beLike {
+          case JsError(
+              List(
+                (
+                  JsPath,
+                  List(JsonValidationError(key +: _, (cause: NumberFormatException)))
+                )
+              )
+              ) =>
+            key must_=== "error.expected.numberformatexception"
+        }
+      }
+    }
+
+    "fail due to digit limit" in {
+      JsString(0.to(532).map(_ => '1').mkString).validate[BigDecimal] must beLike {
+        case JsError(Seq((JsPath, List(JsonValidationError(key +: _))))) =>
+          key must_=== "error.expected.numberdigitlimit"
+      }
     }
   }
 
