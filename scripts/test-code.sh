@@ -4,6 +4,7 @@ echo MATRIX_SCALA=$MATRIX_SCALA
 
 sbt -DscalaJSStage=full \
     -Dscala.version="$MATRIX_SCALA" \
+    -J-XX:+UseG1GC \
     -J-XX:MinRAMPercentage=90.0 \
     -J-XX:MaxRAMPercentage=90.0 \
     testFull || exit 1

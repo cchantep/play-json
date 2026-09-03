@@ -17,7 +17,7 @@ val isScala3 = Def.setting {
 }
 
 def specs2(scalaVersion: String) =
-  Seq("core", "junit").map { n =>
+  Seq("core", "junit", "scalacheck").map { n =>
     ("org.specs2" %% s"specs2-$n" % "4.23.0") % Test
   }
 
@@ -197,6 +197,14 @@ lazy val `play-json` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
           case _                      => sourceDir / "scala-2.13+"
         }
       },
+      mimaBinaryIssueFilters ++= {
+        import com.typesafe.tools.mima.core._
+
+        Seq(
+          ProblemFilters.exclude[IncompatibleTemplateDefProblem]("play.api.libs.json.JsNumber"),
+          ProblemFilters.exclude[DirectAbstractMethodProblem]("play.api.libs.json.JsNumber.value")
+        )
+      },
       Compile / sourceGenerators += Def.task {
         val dir = (Compile / sourceManaged).value
 
@@ -273,7 +281,10 @@ lazy val `play-jsonJVM` = `play-json`.jvm
 
 def enableJol = Seq(
   libraryDependencies += "org.openjdk.jol" % "jol-core" % "0.17" % Test,
-  Test / javaOptions += "-Djdk.attach.allowAttachSelf",
+  Test / javaOptions ++= Seq(
+    "-Djdk.attach.allowAttachSelf",
+    "-Djol.magicFieldOffset=true"
+  ),
   compileOrder := CompileOrder.JavaThenScala,
 )
 
@@ -291,7 +302,9 @@ lazy val `play-functional` = crossProject(JVMPlatform, JSPlatform, NativePlatfor
   .crossType(CrossType.Pure)
   .in(file("play-functional"))
   .settings(
-    commonSettings ++ playJsonMimaSettings
+    commonSettings ++ playJsonMimaSettings ++ Seq(
+      Compile / scalacOptions += "-Wconf:msg=.*witness.* user.*:s"
+    )
   )
   .enablePlugins(Omnidoc)
 
