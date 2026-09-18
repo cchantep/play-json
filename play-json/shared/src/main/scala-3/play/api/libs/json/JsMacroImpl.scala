@@ -239,16 +239,8 @@ object JsMacroImpl { // TODO: debug
                   ${ config }.typeNaming(${ Expr(typeName(tpr.typeSymbol)) })
                 }
 
-                val resolve = resolver[Reads, sub](
-                  // Parent forward codec; subtype view is only valid at runtime.
-                  '{
-                    @SuppressWarnings(Array("AsInstanceOf"))
-                    def forward = ${ forwardExpr }.asInstanceOf[Reads[sub]]
-
-                    forward
-                  },
-                  debug
-                )(readsTpe)
+                // Forward is Reads[A] (sealed parent); Placeholder only substitutes parent self-refs.
+                val resolve = resolver[Reads](forwardExpr, debug)(readsTpe)
 
                 val body: Expr[JsResult[sub]] = resolve(subTpr) match {
                   case Some((givenReads, _)) =>
@@ -311,7 +303,7 @@ object JsMacroImpl { // TODO: debug
       }
 
       val types   = tprElements.map(_._2)
-      val resolve = resolver[Reads, T](forwardExpr, debug)(readsTpe)
+      val resolve = resolver[Reads](forwardExpr.asExprOf[Reads[A]], debug)(readsTpe)
       val compCls = tpr.typeSymbol.companionClass
 
       def ctorDefault[t: Type](sym: Symbol, i: Int): Option[Expr[t]] = {
@@ -462,13 +454,8 @@ object JsMacroImpl { // TODO: debug
                         )
                       }
 
-                      // Limitation: nested JsError becomes None (absence vs invalid not distinguished).
-                      '{
-                        ${ reads }.reads($input) match {
-                          case JsSuccess(v, _) => JsSuccess(Some(v): Option[i])
-                          case _: JsError      => JsSuccess(Option.empty[i])
-                        }
-                      }
+                      // Propagate nested JsError (consistent with non-Option @Flatten).
+                      '{ ${ reads }.reads($input).map(v => Some(v): Option[i]) }
                     } else {
                       val field = '{ ${ config }.naming(${ Expr(pname) }) }
                       val path  = '{ JsPath \ ${ field } }
@@ -661,16 +648,8 @@ object JsMacroImpl { // TODO: debug
                   ${ config }.typeNaming(${ Expr(typeName(tpr.typeSymbol)) })
                 }
 
-                val resolve = resolver[Writes, sub](
-                  // Parent forward codec; subtype view is only valid at runtime.
-                  '{
-                    @SuppressWarnings(Array("AsInstanceOf"))
-                    def forward = ${ forwardExpr }.asInstanceOf[Writes[sub]]
-
-                    forward
-                  },
-                  debug
-                )(writesTpe)
+                // Forward is OWrites[A]/Writes[A] (sealed parent); Placeholder only substitutes parent self-refs.
+                val resolve = resolver[Writes](forwardExpr.asExprOf[Writes[A]], debug)(writesTpe)
 
                 val matchedRef: Expr[sub] = Ref(bind).asExprOf[sub]
 
@@ -723,7 +702,7 @@ object JsMacroImpl { // TODO: debug
       }
 
       val types   = tprElements.map(_._2)
-      val resolve = resolver[Writes, T](forwardExpr, debug)(writesTpe)
+      val resolve = resolver[Writes](forwardExpr.asExprOf[Writes[A]], debug)(writesTpe)
 
       val (optional, required) = tprElements.zipWithIndex.view
         .collect {

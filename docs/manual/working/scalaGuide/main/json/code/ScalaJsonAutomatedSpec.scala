@@ -4,7 +4,7 @@
 
 package scalaguide.json
 
-import play.api.libs.json.Json
+import play.api.libs.json.{ Json, OFormat }
 import org.specs2.mutable.Specification
 import play.api.libs.json.JsonNaming.SnakeCase
 
@@ -22,6 +22,33 @@ object ScalaJsonAutomatedSpec {
   case object Admin                            extends Role
   case class Contributor(organization: String) extends Role
   //#model3
+
+  //#ignore-model
+  case class UserWithSecret(
+      name: String,
+      @Json.Annotations.Ignore passwordHash: String = ""
+  )
+  //#ignore-model
+
+  //#flatten-model
+  case class Range(start: Int, end: Int)
+
+  object Range {
+    implicit val format: OFormat[Range] = Json.format[Range]
+  }
+
+  case class LabelledRange(
+      name: String,
+      @Json.Annotations.Flatten range: Range
+  )
+  //#flatten-model
+
+  //#flatten-option-model
+  case class OptionalLabelledRange(
+      name: String,
+      @Json.Annotations.Flatten range: Option[Range]
+  )
+  //#flatten-option-model
 
   val sampleJson = Json.parse(
     """{
@@ -326,6 +353,53 @@ class ScalaJsonAutomatedSpec extends Specification {
       val resident = Resident(name = "Fiver", age = 4, role = None)
 
       Json.toJson(resident).must_===(sampleJson4)
+    }
+
+    "support @Ignore field annotation" in {
+      //#auto-ignore
+      import play.api.libs.json._
+
+      implicit val userFormat: OFormat[UserWithSecret] = Json.format[UserWithSecret]
+
+      val user = UserWithSecret("alice", "top-secret")
+      val json = Json.obj("name" -> "alice")
+
+      Json.toJson(user).must_===(json)
+      json.as[UserWithSecret].must_===(UserWithSecret("alice", ""))
+      //#auto-ignore
+    }
+
+    "support @Flatten field annotation" in {
+      //#auto-flatten
+      import play.api.libs.json._
+
+      implicit val format: OFormat[LabelledRange] = Json.format[LabelledRange]
+
+      val value = LabelledRange("range1", Range(2, 5))
+      // Nested fields are merged into the parent object:
+      val json = Json.obj("name" -> "range1", "start" -> 2, "end" -> 5)
+      // rather than: { "name": "range1", "range": { "start": 2, "end": 5 } }
+
+      Json.toJson(value).must_===(json)
+      json.as[LabelledRange].must_===(value)
+      //#auto-flatten
+    }
+
+    "support @Flatten on Option" in {
+      //#auto-flatten-option
+      import play.api.libs.json._
+
+      implicit val format: OFormat[OptionalLabelledRange] = Json.format[OptionalLabelledRange]
+
+      val someValue = OptionalLabelledRange("r", Some(Range(1, 3)))
+      val someJson  = Json.obj("name" -> "r", "start" -> 1, "end" -> 3)
+
+      Json.toJson(someValue).must_===(someJson)
+      someJson.as[OptionalLabelledRange].must_===(someValue)
+
+      // None omits nested fields on write:
+      Json.toJson(OptionalLabelledRange("r", None)).must_===(Json.obj("name" -> "r"))
+      //#auto-flatten-option
     }
   }
 }
